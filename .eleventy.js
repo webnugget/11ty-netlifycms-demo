@@ -2,6 +2,9 @@ const yaml = require("js-yaml");
 const { DateTime } = require("luxon");
 const syntaxHighlight = require("@11ty/eleventy-plugin-syntaxhighlight");
 const htmlmin = require("html-minifier");
+const critical = require("critical");
+const path = require("path");
+const { PurgeCSS } = require('purgecss');
 
 module.exports = function (eleventyConfig) {
   // Disable automatic use of your .gitignore
@@ -44,6 +47,19 @@ module.exports = function (eleventyConfig) {
   // Copy favicon to route of /_site
   eleventyConfig.addPassthroughCopy("./src/favicon.ico");
 
+  eleventyConfig.addTransform('purge-and-inline-css', async (content, outputPath) => {
+    if (!outputPath.endsWith('.html')) {
+      return content;
+    }
+  
+    const purgeCSSResults = await new PurgeCSS().purge({
+      content: [{ raw: content }],
+      css: ['./node_modules/uikit/dist/css/uikit.min.css'],
+      keyframes: true,
+    });
+  
+    return content.replace('<!-- INLINE CSS-->', '<style>' + purgeCSSResults[0].css + '</style>');
+  });  
   // Minify HTML
   eleventyConfig.addTransform("htmlmin", function (content, outputPath) {
     // Eleventy 1.0+: use this.inputPath and this.outputPath instead
@@ -58,6 +74,8 @@ module.exports = function (eleventyConfig) {
 
     return content;
   });
+    
+
 
   // Let Eleventy transform HTML files as nunjucks
   // So that we can use .html instead of .njk
